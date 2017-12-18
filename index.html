@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+			<title>D3 Analysis of the 2009 National Household Transportation Survey</title>
+			<script src="https://d3js.org/d3.v4.min.js"></script>
+			<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.0/d3-legend.min.js"></script>
+			<style type="text/css">
+
+				#tooltip {
+				position: absolute;
+				width: auto;
+				height: 20px;
+				padding: 10px;
+				background-color: rgba(255,155,0,0.5);
+				-webkit-border-radius: 10px;
+				-moz-border-radius: 10px;
+				border-radius: 10px;
+				-webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+				-moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+				box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+				pointer-events: none;
+				}
+
+				#tooltip.hidden {
+				display: none;
+				}
+
+				#tooltip p {
+				margin: 0;
+				font-family: sans-serif;
+				font-size: 10px;
+				line-height: 10px;
+				font-weight: bold;
+				}
+				p2 {
+				margin: 0;
+				padding-top: 10px;
+				font-family: san-serif;
+				font-size: 16px;
+				line-height: 18px;
+				color: #7c8083;
+				}
+				
+				h2 {
+				font-size: 24px;
+				color: black;
+				font-weight: bold;
+				}
+			</style>
+			<h1>D3 Analysis of the 2009 National Household Transportation Survey</h1> 
+		</head>
+		<body>
+
+			<div id="tooltip" class="hidden">
+				<p><span id="value">100</span> yrs</p>
+			</div>
+			
+			<h2>Analysis of the Vehicle Stock</h2> 		
+		
+		<script type="text/javascript">
+				var margin = {top: 10, right: 10, bottom: 10, left: 10},
+				padding = {top: 60, right: 60, bottom: 20, left: 60},
+				outerWidth = 700,
+				outerHeight = 640,
+				innerWidth = outerWidth - margin.left - margin.right,
+				innerHeight = outerHeight - margin.top - margin.bottom,
+				w = innerWidth - padding.left - padding.right,
+				h = innerHeight - padding.top - padding.bottom;
+
+				//Define map projection
+				var projection = d3.geoAlbersUsa()
+				.translate([w/2, 0.68*h])
+				.scale([700]);
+
+				//Define path generator
+				var path = d3.geoPath()
+				.projection(projection);
+
+				//Create SVG element
+				var svg = d3.select("body")
+				.append("svg")
+				.attr("width", w)
+				.attr("height", h)
+				.append("g")
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+				//.attr("y",300)
+				//.attr("x",100);
+
+				var rural=d3.select("body")
+				.append("svg")
+				.attr("width",w)
+				.attr("height",h)
+				.append("g")
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+                
+				// set the domain of the colors
+				var color_domain = [6,7, 8,9, 10, 11,12]
+				//scale function to map colors
+				var color = d3.scaleThreshold()
+				.domain(color_domain)
+				.range(d3.schemeGreens[(color_domain.length+1)]);
+				
+				//********************************************************************************************
+				//********************************************************************************************
+				// URBAN AREA CODE
+				//code for the urban areas 
+				//load in the shape file for the US boundary
+				d3.json("https://raw.githubusercontent.com/talham/NHTS09/master/shapefiles/cb_nation.json", function(json) {
+
+				//Bind data and create one path per GeoJSON feature
+				svg.selectAll("path")
+				.data(json.features)
+				.enter()
+				.append("path")
+				.attr("d", path)
+				.style("fill", "white")
+				.style("stroke","#bfbfbf");
+				});
+
+				//Load in vehicle age data
+				d3.csv("https://raw.githubusercontent.com/talham/NHTS09/master/Data/vehicle_age.csv", function(data) {
+
+
+				//Load in GeoJSON data
+				d3.json("https://raw.githubusercontent.com/talham/NHTS09/master/shapefiles/cbsa07.json", function(json) {
+
+				//Merge the age data and GeoJSON
+				//Loop through once for each age data value
+				for (var i = 0; i < data.length; i++) {
+
+						//Grab state name
+						var datacbsa = data[i].HH_CBSA;
+
+						//Grab data value, and convert from string to float
+						var dataValue = parseFloat(data[i].avg_age);
+
+						//Find the corresponding state inside the GeoJSON
+						for (var j = 0; j < json.features.length; j++) {
+
+								var jsoncbsa = json.features[j].properties.CBSAFP;
+
+								if (datacbsa == jsoncbsa) {
+
+								//Copy the data value into the JSON
+								json.features[j].properties.age = dataValue;
+
+								//Stop looking through the JSON
+								break;
+
+								}
+								}		
+								}
+								//Bind data and create one path per GeoJSON feature
+								svg.selectAll("path")
+								.data(json.features)
+								.enter()
+								.append("path")
+								.attr("d", path)
+								.style("fill", function(d) {
+								//Get data value
+								var value = d.properties.age;
+
+								if (value) {
+								//If value exists…
+								return color(value);
+								} else {
+								//If value is undefined…
+								return "#bfbfbf";
+								}
+								})
+								.on("mouseover", function(d) {
+								//Update the tooltip position and value
+								d3.select("#tooltip")
+								.style("left", (d3.event.pageX) + "px")
+								.style("top", (d3.event.pageY) + "px")						
+								.select("#value")
+								.html(d.properties.NAME+"<br/>"+d.properties.age);
+
+								//Show the tooltip
+								d3.select("#tooltip").classed("hidden", false);
+
+								})
+								.on("mouseout", function() {
+
+								//Hide the tooltip
+								d3.select("#tooltip").classed("hidden", true);
+								});
+								});
+								});	
+				
+				//********************************************************************************************
+				//********************************************************************************************				
+								// Rural AREA CODE
+								//code for the rural areas
+								//load vehicle by state 
+				d3.csv("https://raw.githubusercontent.com/talham/NHTS09/master/Data/vehicle_age_rural.csv", function(data) {
+
+								//Load in GeoJSON data
+					d3.json("https://raw.githubusercontent.com/talham/NHTS09/master/shapefiles/cbsa_rural_07.json", function(json) {
+
+								//Merge the ag. data and GeoJSON
+								//Loop through once for each ag. data value
+								for (var i = 0; i < data.length; i++) {
+
+										//Grab state name
+										var datast = data[i].HHSTFIPS;
+
+										//Grab data value, and convert from string to float
+										var dataValue = parseFloat(data[i].avg_age);
+
+										//Find the corresponding state inside the GeoJSON
+										for (var j = 0; j < json.features.length; j++) {
+
+												var jsonst = json.features[j].properties.STATEFP;
+
+												if (datast == jsonst) {
+
+												//Copy the data value into the JSON
+												json.features[j].properties.age = dataValue;
+
+												//Stop looking through the JSON
+												break;
+
+												}
+												}		
+												}
+												//Bind data and create one path per GeoJSON feature
+												rural.selectAll("path")
+												.data(json.features)
+												.enter()
+												.append("path")
+												.attr("d", path)
+												.style("fill", function(d) {
+												//Get data value
+												var value = d.properties.age;
+
+												if (value) {
+												//If value exists…
+												return color(value);
+												} else {
+												//If value is undefined…
+												return "#bfbfbf";
+												}
+												})
+												.on("mouseover", function(d) {
+												//Update the tooltip position and value
+												d3.select("#tooltip")
+												.style("left", (d3.event.pageX) + "px")
+												.style("top", (d3.event.pageY) + "px")						
+												.select("#value")
+												.html(d.properties.NAME+"<br/>"+d.properties.age);
+
+												//Show the tooltip
+												d3.select("#tooltip").classed("hidden", false);
+												})
+												.on("mouseout", function() {
+												//Hide the tooltip
+												d3.select("#tooltip").classed("hidden", true);
+												});
+												});
+												});	
+						// add the US national area to rural area map
+						d3.json("https://raw.githubusercontent.com/talham/NHTS09/master/shapefiles/cb_nation.json", function(json) {
+
+												//Bind data and create one path per GeoJSON feature
+												rural.selectAll("path")
+												.data(json.features)
+												.enter()
+												.append("path")
+												.attr("d", path)
+												.style("fill", "white")
+												.style("stroke","#bfbfbf");
+												});
+
+												//add the legend						
+												svg.append("g")
+												.attr("class", "legendLinear")
+												.attr("transform", "translate(0,20)")
+												.append("text")
+												.text("Average Vehicle Age in Years").attr("y",-10).attr("font","6px sans-serif").attr("font-weight","bold"); //legend label 
+												
+												var legendLinear = d3.legendColor()
+												.shapeWidth(20)
+												.labels(d3.legendHelpers.thresholdLabels)
+												.scale(color);
+
+												svg.select(".legendLinear")
+												.call(legendLinear); //call legend function
+												
+												//Add title labels to Maps
+												svg.append("text").text("Urban").attr("y",0.4*h).attr("x",w*0.35).attr("font-weight","bold");
+												rural.append("text").text("Rural").attr("y",0.4*h).attr("x",w*0.55).attr("font-weight","bold");
+											</script>
+			
+			<p2> </br> The visualization shows the average age of vehicles based on the 2009 NHTS Survey. Urban and Rural areas above are based on 2007 Core-Based Statistical Areas (CBSA). Rural areas are defined as the difference of Urban areas in a particular state and the boundary definition of that state. Areas in grey on the map represent areas where there is no data. White areas represent regions considered to be outside of the urban or rural area definition as the case maybe. </p2>
+			
+										</body>
+									</html>
